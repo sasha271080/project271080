@@ -42,6 +42,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#include <string.h>
 
 /* ==========================================================================
  *  НАСТРОЙКИ
@@ -52,8 +53,9 @@
 /* Должно совпадать с WIFI_BAUD в Core/Inc/mc_wifi.h */
 #define LINK_BAUD       460800u
 
-/* Буфер приёма UART. 4096 байт = 88 мс при 460800 — переживает отправку
-   страницы панели по Wi-Fi, когда loop() занят сетью. */
+/* Буфер приёма UART. 4096 байт = 89 мс при 460800. Открытие страницы панели
+   (~20 КБ) на медленном клиенте этот запас может съесть: тогда пара кадров
+   теряется, панель догоняет на следующем. Видно по fps в /api/info. */
 #define RX_BUFFER_SIZE  4096
 
 /* Максимальный кадр. В прошивке sbuf = 1024 байта, берём с запасом. */
@@ -70,7 +72,6 @@
 
 /* Кадр старше — показываем «нет данных». */
 #define STALE_MS        1500u
-#define STALE_AGE_SENT  99999u
 
 /* Отсчётов АЦП на 1 А. Должно совпадать с I_CNT_PER_A в Core/Inc/mc.h
    (шунт 0.075 Ом, ACPL-C790 x8.2, Vref 3.3 В, 12 бит). */
@@ -126,6 +127,14 @@ static uint32_t lastPingMs   = 0;
 static uint32_t fpsMark      = 0;
 static uint32_t fpsCount     = 0;
 static uint32_t fpsVal       = 0;
+
+/* Кадр считается свежим, если он не старше STALE_MS. Устаревший кадр панель
+   всё равно получает (чтобы показать последние значения), но с пометкой
+   X-Stm: stale — и браузер гасит цифры и не тянет график дальше. */
+static bool frameFresh()
+{
+  return (lastLen > 0) && ((millis() - lastFrameMs) <= STALE_MS);
+}
 
 /* ==========================================================================
  *  ВЕБ-ПАНЕЛЬ (в flash, ОЗУ не занимает)
@@ -187,6 +196,8 @@ canvas{width:100%;height:150px;display:block}
 #log{font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--dim);max-height:110px;overflow:auto;background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
 .wide{grid-column:1/-1}
+.wrap.stale .big,.wrap.stale .row b{opacity:.4}
+.wrap.stale .bar i{opacity:.4}
 </style>
 </head>
 <body>
@@ -354,7 +365,11 @@ function cmd(c){
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-cmd]');
   if(b){
-    if(b.dataset.cmd==='w' && !confirm('Записать настройки в Flash STM32?')) return;
+    if(b.dataset.cmd==='w'){
+      if(st && st.on){ alert('Мотор работает (on=1): прошивка проигнорирует запись в Flash. Сначала остановите двигатель.'); return; }
+      if(!confirm('Записать настройки в Flash STM32?')) return;
+    }
+    if(b.dataset.cmd==='WE0' && !confirm('Мост Wi-Fi выключится до перезагрузки STM32 — панель перестанет получать данные. Продолжить?')) return;
     cmd(b.dataset.cmd); return;
   }
   var m=e.target.closest('[data-mode]');
@@ -376,10 +391,23 @@ function link(ok,txt){
 async function poll(){
   try{
     var r=await fetch('/api/data',{cache:'no-store'});
+    var h=r.headers.get('X-Stm')||'none';
+    var age=parseInt(r.headers.get('X-Frame-Age')||'0',10)||0;
     var j=JSON.parse(await r.text());
-    if(!j || j.rpm===undefined){ link(false,'STM32: нет кадров'); return; }
-    st=j; render(j); link(true,'STM32: онлайн');
-  }catch(e){ link(false,'STM32: нет связи'); }
+    if(!j || j.rpm===undefined){
+      dim(true);
+      link(false, h==='stale'?('STM32: молчит '+Math.round(age/1000)+' с'):'STM32: нет кадров');
+      return;
+    }
+    st=j; render(j);
+    if(h==='ok'){ link(true,'STM32: онлайн'); dim(false); pushHist(j); }
+    else { link(false,'STM32: молчит '+Math.round(age/1000)+' с'); dim(true); }
+  }catch(e){ dim(true); link(false,'STM32: нет связи'); }
+}
+
+function dim(on){
+  var w=document.querySelector('.wrap');
+  if(w) w.classList.toggle('stale',!!on);
 }
 
 function bar(id,p){
@@ -441,8 +469,6 @@ function render(j){
   setVal('fr',j.fr); setVal('fd',j.fd); setVal('sl',j.sl);
   setVal('cp',j.cikp); setVal('ci',j.ciki); setVal('bt',j.bt);
   setVal('clv',j.cls); setVal('cnv',j.cn);
-
-  pushHist(j);
 }
 
 function pushHist(j){
@@ -800,13 +826,16 @@ static void handleData()
 
   if (lastLen == 0)
   {
+    web.sendHeader("X-Stm", "none");
+    web.sendHeader("X-Frame-Age", "0");
     web.send(200, "application/json", "{}");
     return;
   }
 
-  uint32_t age = (millis() - lastFrameMs) / 1000u;
-  if (age > STALE_AGE_SENT) age = STALE_AGE_SENT;
-  web.sendHeader("X-Frame-Age", String(age));
+  uint32_t ageMs = millis() - lastFrameMs;
+
+  web.sendHeader("X-Stm", frameFresh() ? "ok" : "stale");
+  web.sendHeader("X-Frame-Age", String(ageMs));
   web.send(200, "application/json", lastFrame);
 }
 
