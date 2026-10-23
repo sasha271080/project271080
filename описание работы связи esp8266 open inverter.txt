@@ -1,0 +1,487 @@
+Сейчас я не вижу привязанного GitHub repo для этой сессии: в истории сессии репозиторий не найден, и вы не указали owner/repo. Поэтому я не могу прямо записать файл в ваш репозиторий из этой сессии. Если пришлёте owner/name или ссылку на repo, я сразу подготовлю и запишу готовый документ туда.
+
+А пока вот полный текст, который можно сохранить в файле вроде docs/esp8266-communication.md.
+
+Документ:
+
+````markdown name=docs/esp8266-communication.md
+# ESP8266 в OpenInverter: как устроена связь и как её повторить
+
+## 1. Что это за устройство и зачем оно нужно
+
+В OpenInverter ESP8266 обычно используется как Wi‑Fi/HTTP мост между веб‑интерфейсом и основным контроллером инвертора (обычно STM32). То есть:
+
+- пользователь открывает веб‑страницу;
+- браузер делает HTTP‑запрос к ESP8266;
+- ESP8266 преобразует этот запрос в текстовую команду;
+- команда отправляется по UART/Serial в основную плату инвертора;
+- инвертор отвечает текстом или JSON;
+- ESP8266 возвращает этот ответ в браузер.
+
+Это даёт интерфейс “веб‑панель”, но на деле основная логика всё равно живёт в инверторе.
+
+Основной пример проекта:
+- https://github.com/jsphuebner/esp8266-web-interface
+
+---
+
+## 2. Какие файлы в проекте отвечают за связь
+
+Главный проект, который показывает эту архитектуру, — jsphuebner/esp8266-web-interface.
+
+Основные файлы:
+
+- README.md — описание использования и структуры проекта.
+- PROTOCOL.md — описание UART протокола обмена.
+- esp8266-web-interface.ino — основной firmware ESP8266.
+- data/inverter.js — клиентская часть, отправляющая команды на ESP8266.
+- data/index.js — JavaScript интерфейса.
+- data/index.html — веб‑страница.
+
+Именно эти файлы показывают, как устроена связь.
+
+---
+
+## 3. Общая архитектура
+
+Схема примерно такая:
+
+1. Браузер
+   - пользователь работает в интерфейсе;
+   - JavaScript вызывает HTTP‑адрес вида /cmd?cmd=json
+
+2. ESP8266
+   - работает как HTTP сервер;
+   - принимает /cmd;
+   - отправляет команду по Serial в MCU;
+   - читает ответ;
+   - отдает ответ обратно браузеру.
+
+3. Основной MCU инвертора
+   - принимает текстовые команды;
+   - читает и пишет внутренние параметры;
+   - возвращает значения.
+
+4. Web UI
+   - показывает текущие параметры: напряжение, ток, обороты, ошибки и т.д.
+
+---
+
+## 4. Протокол обмена по UART
+
+В файле PROTOCOL.md описан протокол.
+
+Важный кусок:
+
+```markdown
+Commands are sent by the ESP8266. Each command consists of a single line consisting of a command word
+followed optionally by parameters and terminates with a newline character. Commands must be echoed back
+to the ESP8266.
+
+Following the echo, the esp8266 will receive an unlimited quantity of response data, terminated by a
+100ms timeout.
+```
+
+То есть:
+- ESP8266 шлёт команду в одну строку;
+- в конце строки — `\n`;
+- инвертор должен повторить/эхо‑ответить;
+- потом идёт ответ данных;
+- завершение ответа происходит по таймауту.
+
+Команды, которые используются:
+
+- `save`
+- `load`
+- `fastuart`
+- `set [parameter] [value]`
+- `can [direction] [name] [canid] [offset] [length] [gain]`
+- `start [opmode]`
+- `stop`
+- `get [parameter]`
+- `stream [repetitions] [val1,val2,val3]`
+- `json [hidden]`
+- `errors`
+- `reset`
+- `defaults`
+
+Самое важное — это `json` и `get`/`stream`.
+
+---
+
+## 5. Как ESP8266 отправляет команду
+
+В esp8266-web-interface.ino есть функция sendCommand:
+
+```cpp
+static void sendCommand(String cmd)
+{
+  Serial.print("\n");
+  delay(1);
+  while(Serial.available())
+    Serial.read(); //flush all previous output
+  Serial.print(cmd);
+  Serial.print("\n");
+  Serial.readStringUntil('\n'); //consume echo  
+}
+```
+
+Что она делает:
+- очищает буфер Serial;
+- отправляет команду в текстовом виде;
+- читает echo, чтобы подтвердить, что команду приняли.
+
+После этого ESP8266 читает ответ:
+
+```cpp
+static void handleCommand() {
+  const int cmdBufSize = 128;
+  if (!server.hasArg("cmd")) {
+    server.send(500, "text/plain", "BAD ARGS");
+    return;
+  }
+
+  String cmd = server.arg("cmd").substring(0, cmdBufSize);
+  int repeat = 0;
+  if (server.hasArg("repeat"))
+    repeat = server.arg("repeat").toInt();
+
+  WiFiClient client = server.client();
+
+  client.print(
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: application/json\r\n"
+    "Access-Control-Allow-Origin: *\r\n"
+    "Connection: close\r\n"
+    "\r\n"
+  );
+
+  sendCommand(cmd);
+```
+
+Дальше идёт цикл чтения с Serial:
+
+```cpp
+while (!done)
+{
+  int avail = Serial.available();
+  if (avail > 0)
+  {
+    size_t space = TX_BUF_SIZE - txLen;
+    int toRead = avail < (int)space ? avail : (int)space;
+    int bytesRead = Serial.readBytes(&txBuffer[txLen], toRead);
+    if (bytesRead > 0)
+    {
+      lastDataTime = millis();
+
+      if (isJson && !complete)
+      {
+        // анализ JSON: искать открывающую и закрывающую фигурную скобку
+      }
+
+      txLen += bytesRead;
+    }
+  }
+  else
+  {
+    unsigned long timeout = isJson ? 800 : 250;
+    if (millis() - lastDataTime >= timeout)
+    {
+      done = true;
+      break;
+    }
+  }
+}
+```
+
+То есть ESP8266:
+- шлёт команду;
+- читает ответ из Serial;
+- собирает JSON или текст;
+- отправляет обратно HTTP клиенту.
+
+---
+
+## 6. Как веб‑страница вызывает команды
+
+Клиентская часть находится в data/inverter.js. Есть функция sendCmd:
+
+```javascript
+sendCmd: function(cmd, replyFunc, repeat)
+{
+  var req = "/cmd?cmd=" + encodeURIComponent(cmd);
+  if (repeat)
+    req += "&repeat=" + encodeURIComponent(repeat);
+
+  if (window.fetch && window.ReadableStream)
+  {
+    fetch(req)
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var accumulated = "";
+
+        function readNextChunk() {
+          return reader.read().then(function(result) {
+            if (result.done) {
+              if (replyFunc) replyFunc(accumulated);
+              return accumulated;
+            }
+            accumulated += decoder.decode(result.value, { stream: true });
+            return readNextChunk();
+          });
+        }
+        return readNextChunk();
+      })
+      .catch(function(err) {
+        console.error("sendCmd fetch error:", err);
+        if (replyFunc) replyFunc("");
+      });
+  }
+  else
+  {
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function()
+    {
+      if (replyFunc) replyFunc(this.responseText);
+    };
+    xmlhttp.onerror = function()
+    {
+      if (replyFunc) replyFunc("");
+    };
+    xmlhttp.ontimeout = function()
+    {
+      if (replyFunc) replyFunc("");
+    };
+    xmlhttp.open("GET", req, true);
+    xmlhttp.send();
+  }
+}
+```
+
+Здесь видно очень важный момент:
+- веб‑страница не общается напрямую с инвертором;
+- она общается с ESP8266 через HTTP;
+- ESP8266 преобразует её в Serial‑команды.
+
+---
+
+## 7. Как получают полный список параметров
+
+Самый важный вызов — `json`:
+
+```javascript
+getParamList: function(replyFunc, includeHidden)
+{
+  var cmd = includeHidden ? "json hidden" : "json";
+
+  inverter.sendCmd(cmd, function(reply) {
+    var params = {};
+    try
+    {
+      if (typeof reply === "string")
+      {
+        reply = reply.trim();
+      }
+      params = JSON.parse(reply);
+
+      for (var name in params)
+      {
+        var param = params[name];
+        param.enums = inverter.parseEnum(param.unit);
+
+        if (name == "version")
+          inverter.firmwareVersion = parseFloat(param.value);
+      }
+      paramsCache.setData(params);
+    }
+    catch(ex)
+    {
+      console.error("JSON parse failed", ex);
+    }
+  });
+}
+```
+
+То есть:
+- ESP8266 шлёт на инвертор команду `json`;
+- инвертор возвращает большой JSON с параметрами;
+- браузер парсит JSON и строит интерфейс для отображения.
+
+Пример JSON из документации:
+
+```json
+{
+  "udc":   {"unit":"V",   "value": 400.0,  "isparam": false},
+  "fweak": {"unit":"Hz",  "value": 67.0,   "isparam": true, "minimum": 0.0, "maximum": 400.0, "default": 67.0, "category": "Motor (sine)", "i": 8},
+  "speed": {"unit":"rpm", "value": 1000.0, "isparam": false, "canid": 123, "canoffset":0, "canlength":32, "cangain":5, "isrx": false}
+}
+```
+
+---
+
+## 8. Как устроена работа в одном абзаце
+
+Если очень коротко:
+
+- ESP8266 получает HTTP‑запрос от браузера.
+- Он переводит этот HTTP‑запрос в текстовую Serial‑команду.
+- Команда может быть вида: `json`, `get udc`, `set fweak 67`, `stream ...`
+- Инвертор её обрабатывает.
+- Инвертор отвечает по UART.
+- ESP8266 читает ответ и отправляет его браузеру.
+- JavaScript парсит JSON и показывает параметры пользователю.
+
+---
+
+## 9. Почему это хороший шаблон для повторения
+
+Плюсы этой архитектуры:
+
+- простота;
+- минимальная логика в ESP8266;
+- можно быстро отладить через Serial;
+- легко поддерживать веб‑интерфейс;
+- данные и параметры уже описаны в JSON.
+
+Минусы:
+- зависимость от строкового UART протокола;
+- нужна строгая синхронизация по echo/таймаутам;
+- размер команд и ответов ограничен;
+- нужно учитывать, что firmware инвертора должен понимать команды.
+
+---
+
+## 10. Как повторить это в своём проекте
+
+Минимальная схема:
+
+1. На ESP8266:
+   - HTTP сервер на 80
+   - обработчик `/cmd`
+   - текстовая команда по UART
+   - чтение строки/JSON с Serial
+   - отправка ответа в HTTP
+
+2. На основной плате:
+   - парсер команд:
+     - `json`
+     - `get param`
+     - `set param value`
+     - `stream ...`
+   - массив параметров (доступные значения)
+   - формирование ответа в текстовом или JSON виде
+
+3. На веб‑странице:
+   - `fetch("/cmd?cmd=json")`
+   - `JSON.parse(...)`
+   - отображение в UI
+
+---
+
+## 11. Минимальный исполнительный цикл для ESP8266
+
+Если хочется повторить минимально:
+
+```cpp
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_AP_STA);
+  // HTTP server init
+}
+
+void loop() {
+  // handle HTTP
+  // when /cmd requested:
+  // String cmd = server.arg("cmd");
+  // Serial.println(cmd);
+  // read response from Serial
+  // server.send(200, "application/json", response);
+}
+```
+
+На стороне инвертора/MCU нужно примерно так:
+
+```cpp
+if (Serial.available()) {
+  String cmd = Serial.readStringUntil('\n');
+  cmd.trim();
+
+  if (cmd.startsWith("json")) {
+    Serial.println("{\"udc\":{\"unit\":\"V\",\"value\":400.0,\"isparam\":false}}");
+  }
+  else if (cmd.startsWith("get ")) {
+    Serial.println("400.0");
+  }
+  else if (cmd.startsWith("set ")) {
+    Serial.println("OK");
+  }
+}
+```
+
+Это уже реализует протокол в простейшем виде.
+
+---
+
+## 12. Куда смотреть в исходниках
+
+Если вы хотите понять именно реальную реализацию, смотрите:
+
+- `PROTOCOL.md` — какое API ожидается
+- `esp8266-web-interface.ino` — HTTP + UART мост
+- `data/inverter.js` — как браузер вызывает команды
+- `data/index.js` — как UI запрашивает данные
+
+Это лучший набор для повторения.
+
+---
+
+## 13. Итог
+
+ESP8266 в OpenInverter — это не “главный контроллер”, а коммуникационный мост:
+
+- HTTP от браузера
+- UART/Serial к основному MCU
+- JSON по текстовой линии
+- веб‑интерфейс как UI над параметрами инвертора
+
+Если нужно повторить это в своей системе, самый правильный путь — сделать такой же поток:
+
+- HTTP API на ESP8266
+- команда `/cmd`
+- UART обмен строками
+- JSON или простые текстовые ответы
+- парсер команд на MCU
+
+---
+
+## 14. Если хотите повторить “в лоб”
+
+Самый простой рабочий вариант для проекта:
+
+- ESP8266 на UART RX/TX -> MCU
+- `/cmd?cmd=json` -> `Serial.println("json")`
+- MCU отвечает `{"udc":...,"speed":...}`
+- браузер вызывает fetch и парсит JSON
+- для записи параметров: `/cmd?cmd=set fweak 67` -> `Serial.println("set fweak 67")`
+
+Это уже очень близко к OpenInverter.
+
+Если хотите, я дальше могу сделать для вас один из вариантов:
+
+1. готовый Arduino sketch для ESP8266 с HTTP `/cmd` и Serial мостом;
+2. пример STM32/MCU парсера команд;
+3. полностью готовый документ в формате README для вашего проекта;
+4. таблицу пинов UART и схему подключения ESP8266 к инвертору;
+5. если пришлёте owner/repo, я запишу этот документ прямо в ваш репозиторий.
+````
+
+Если хотите, я могу сразу сделать ещё один шаг:
+- подготовить именно “полный код” ESP8266 bridge под Arduino/PlatformIO;
+- или сделать “реализацию на C++ для MCU”;
+- или сделать “документ для repo” в формате Markdown под ваш проект.
+
+Если пришлёте repo owner/name, я могу сразу записать это туда, как только repo будет доступен.

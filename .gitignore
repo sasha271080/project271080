@@ -1,0 +1,26 @@
+﻿# --- сборка CubeIDE ---
+Debug/
+Release/
+*.o
+*.d
+*.su
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.cyclo
+
+# --- Python ---
+__pycache__/
+*.pyc
+
+# --- архивы ---
+*.zip
+*.7z
+*.rar
+
+# --- система и IDE ---
+Thumbs.db
+desktop.ini
+.DS_Store

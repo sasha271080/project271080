@@ -1,0 +1,243 @@
+{
+    "actions": [
+    ],
+    "decoder": 0,
+    "frameDetection": 0,
+    "frameEnd": "\\n",
+    "frameParser": "/**\n * Splits a data frame into an array of elements using a comma separator.\n *\n * Use this function to break a string (like \"value1,value2,value3\") into\n * individual pieces, which can then be displayed or processed in your project.\n *\n * @param[in]  frame   A string containing the data frame.\n *                     Example: \"value1,value2,value3\"\n *\n * @return     An array of strings with the split elements.\n *             Example: [\"value1\", \"value2\", \"value3\"]\n *\n * @note You can declare global variables outside this function if needed\n *       for storing settings or keeping state between calls.\n */\nfunction parse(frame) {\n    var o = JSON.parse(frame);\n    return [\n        o.cur / 3152,      // 1: Ток, А\n        o.rms / 3152,      // 2: RMS, А\n        o.pot,             // 3: уставка (потенциометр)\n        o.rpm,             // 4: обороты\n        o.rpm_set,         // 5: уставка оборотов\n        o.limit,           // 6: защита 0/1\n     o.cl / 3152 * 1000,   // 7: порог тока, мА (например 790 = 0.79 А)\n    ];\n}",
+    "frameStart": "$",
+    "groups": [
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": true,
+                    "index": 1,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2,
+                    "min": 0,
+                    "title": "DC",
+                    "units": "ампер",
+                    "value": "--.--",
+                    "widget": "bar"
+                },
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": false,
+                    "index": 1,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2,
+                    "min": 0,
+                    "title": "DC",
+                    "units": "A",
+                    "value": "--.--",
+                    "widget": "bar"
+                }
+            ],
+            "title": "Множественный график",
+            "widget": ""
+        },
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": true,
+                    "index": 2,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2,
+                    "min": 0,
+                    "title": "rms",
+                    "units": "ампер",
+                    "value": "--.--",
+                    "widget": ""
+                },
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": false,
+                    "index": 2,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2,
+                    "min": 0,
+                    "title": "rms",
+                    "units": "",
+                    "value": "--.--",
+                    "widget": "bar"
+                }
+            ],
+            "title": "Множественный график (2)",
+            "widget": ""
+        },
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": true,
+                    "index": 3,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 0,
+                    "min": 0,
+                    "title": "pot",
+                    "units": "",
+                    "value": "--.--",
+                    "widget": ""
+                }
+            ],
+            "title": "Множественный график (3)",
+            "widget": ""
+        },
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": true,
+                    "index": 4,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2200,
+                    "min": 0,
+                    "title": "rpm",
+                    "units": "обороты в минуту",
+                    "value": "--.--",
+                    "widget": ""
+                },
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": false,
+                    "index": 4,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2000,
+                    "min": 0,
+                    "title": "rpm",
+                    "units": "обо в мин",
+                    "value": "--.--",
+                    "widget": "gauge"
+                }
+            ],
+            "title": "Множественный график (4)",
+            "widget": ""
+        },
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": true,
+                    "index": 5,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2200,
+                    "min": 0,
+                    "title": "rpm set",
+                    "units": "",
+                    "value": "--.--",
+                    "widget": ""
+                },
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": false,
+                    "index": 5,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 2200,
+                    "min": 0,
+                    "title": "rpm set",
+                    "units": "",
+                    "value": "--.--",
+                    "widget": "bar"
+                }
+            ],
+            "title": "Множественный график (5)",
+            "widget": ""
+        },
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": true,
+                    "index": 6,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 1,
+                    "min": 0,
+                    "title": "limit",
+                    "units": "",
+                    "value": "--.--",
+                    "widget": ""
+                }
+            ],
+            "title": "Множественный график (6)",
+            "widget": ""
+        },
+        {
+            "datasets": [
+                {
+                    "alarm": 0,
+                    "fft": false,
+                    "fftSamples": 256,
+                    "fftSamplingRate": 100,
+                    "graph": false,
+                    "index": 7,
+                    "led": false,
+                    "ledHigh": 1,
+                    "log": false,
+                    "max": 1000,
+                    "min": 0,
+                    "title": "уставка тока",
+                    "units": "М АМ",
+                    "value": "--.--",
+                    "widget": "bar"
+                }
+            ],
+            "title": "Множественный график (7)",
+            "widget": ""
+        }
+    ],
+    "mapTilerApiKey": "",
+    "thunderforestApiKey": "",
+    "title": "Безымянный проект"
+}
