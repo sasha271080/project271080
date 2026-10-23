@@ -20,8 +20,8 @@
 
 - `esp8266/README.md` — обзор и цель модуля
 - `esp8266/esp8266_ap_dashboard.ino` — базовый sketch ESP8266 AP + веб-страница
-- `esp8266/ESP8266_AND_STM32_INTERFACE.md` — описание связи STM32 ↔ ESP8266
-- `esp8266/CONVERSATION_CONTEXT.md` — итоговый контекст и история обсуждения
+- `esp8266/COMMANDS.md` — команды STM32 и HTTP-API панели, поля JSON, коды аварий
+- `esp8266/PROJECT_MEMORY.md` — связь STM32 ↔ ESP8266, принятые решения и грабли
 
 Идея следующая:
 - STM32 остаётся основой управления двигателем;
