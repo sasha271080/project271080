@@ -199,7 +199,7 @@ void mc_cmd_parse(const uint8_t *buf, uint32_t len)
   if (match(buf, len, "CI", 2) && parse_u32(buf, len, 2, &v))
   { if (v >= 0 && v <= 5000) ci_ki = v; return; }
 
-  /* CLxxxx — предел тока в отсчётах АЦП (763 = 1.00 А, шунт 0.075 Ом).
+  /* CLxxxx — предел тока в отсчётах АЦП (834 = 1.00 А, шунт 0.082 Ом).
      НОВОЕ: без этой команды шунт и лимит менялись только перепрошивкой. */
   if (match(buf, len, "CL", 2) && parse_u32(buf, len, 2, &v))
   { if (v >= 50 && v <= 3000) current_limit_set = (uint32_t)v; return; }

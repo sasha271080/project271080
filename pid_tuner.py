@@ -157,7 +157,7 @@ class PidTuner:
         self.step_peak = 0.0
 
         # --- Калибровка тока ---
-        self.shunt_r = 0.075
+        self.shunt_r = 0.082
         self.gain = 8.2
 
         self.panel_hidden = False
@@ -1579,7 +1579,7 @@ class PidTuner:
                 kdm_fw = int(live.get('kdm', 1000))
                 cikp_fw = int(live.get('cikp', 0))
                 ciki_fw = int(live.get('ciki', 0))
-                climit = float(live.get('cl', 763)) * self.adc_to_a
+                climit = float(live.get('cl', 834)) * self.adc_to_a
                 ss = int(live.get('ss', DEFAULT_SS))
                 ru = int(live.get('ru', DEFAULT_RU))
                 rd = int(live.get('rd', DEFAULT_RD))

@@ -1213,7 +1213,7 @@ static void speed_and_limits(uint32_t dt_us)
      хода любого якоря под ШИМ, 0.5 с длиннее переходного процесса. */
   {
     static uint32_t i_dead_us = 0;
-    const int32_t I_MIN_OK = 763 / 20;          /* 0.05 А в отсчётах */
+    const int32_t I_MIN_OK = I_CNT_PER_A / 20;   /* 0.05 А в отсчётах */
 
     if (mc_inverter_on && !ol_mode &&
         mc_duty > (uint32_t)(PWM_MAX / 5) &&
