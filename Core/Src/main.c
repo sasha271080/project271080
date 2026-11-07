@@ -101,6 +101,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
   */
 int main(void)
 {
+  uint8_t wdg_reset = (RCC->CSR & RCC_CSR_IWDGRSTF) ? 1u : 0u;
+  RCC->CSR |= RCC_CSR_RMVF;
+
   HAL_Init();
   SystemClock_Config();
 
@@ -115,6 +118,8 @@ int main(void)
   /* Ядро: TIM2, кнопка, приоритеты прерываний, загрузка настроек,
      старт АЦП+DMA и ШИМ с нулевым заполнением */
   mc_init();
+
+  if (wdg_reset) mc_trip_set_external(TRIP_WDG);
 
   /* Сторожевой таймер ставится ПОСЛЕ инициализации: устройство держит
      силовой ключ, поэтому зависание процессора должно приводить к сбросу,

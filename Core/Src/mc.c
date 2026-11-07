@@ -1517,6 +1517,7 @@ uint32_t mc_led_pattern(void)
     case TRIP_OVERSPEED: return 175u;
     case TRIP_TQ_HOLD:   return 250u;
     case TRIP_OC:        return 500u;
+    case TRIP_WDG:       return 400u;
     case TRIP_HW:        return 700u;   /* аппаратная авария по TIM1_BKIN */
     default: break;
   }
