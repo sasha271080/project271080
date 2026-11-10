@@ -74,8 +74,10 @@
 #define STALE_MS        1500u
 
 /* Отсчётов АЦП на 1 А. Должно совпадать с I_CNT_PER_A в Core/Inc/mc.h
-   (шунт 0.075 Ом, ACPL-C790 x8.2, Vref 3.3 В, 12 бит). */
-static const float I_CNT_PER_A = 763.0f;
+   (шунт 0.082 Ом, ACPL-C790 x8.2, Vref 3.3 В, 12 бит -> 834 отсчёта).
+   Это значение по умолчанию: в панели его можно пересчитать под свой шунт,
+   результат хранится в localStorage браузера. */
+static const float I_CNT_PER_A = 834.0f;
 
 /* --- Точка доступа. Пароль короче 8 символов ESP8266 не примет. --- */
 static const char AP_SSID[] = "MotorCtrl";
@@ -193,6 +195,19 @@ input[type=range]{padding:0;height:28px}
 details{margin-top:0}
 summary{cursor:pointer;color:var(--dim);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 canvas{width:100%;height:150px;display:block}
+.chartbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.chartbar h2{margin:0;flex:1 1 auto}
+#series{display:flex;gap:6px}
+#series button{padding:5px 9px;font-size:12px}
+#series button.on{background:#20313a;border-color:var(--acc);color:var(--acc);font-weight:600}
+#pauseBtn{padding:5px 10px;font-size:12px}
+#pauseBtn.on{background:#3a331d;border-color:var(--warn);color:var(--warn)}
+.chart{margin-top:8px}
+.chart.hide{display:none}
+.charthead{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:2px}
+.charthead b{color:var(--txt);font-variant-numeric:tabular-nums}
+#chRpm,#chCur{width:100%;height:140px;display:block}
+#chartInfo{font-size:11px;color:var(--dim)}
 #log{font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--dim);max-height:110px;overflow:auto;background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
 .wide{grid-column:1/-1}
@@ -310,8 +325,24 @@ canvas{width:100%;height:150px;display:block}
     </div>
 
     <div class="card wide">
-      <h2>Обороты и ток</h2>
-      <canvas id="ch"></canvas>
+      <div class="chartbar">
+        <h2>Графики</h2>
+        <div id="series">
+          <button data-series="rpm">Обороты</button>
+          <button data-series="cur">Ток</button>
+          <button data-series="both">Оба</button>
+        </div>
+        <button id="pauseBtn">Пауза</button>
+      </div>
+      <div id="wrapRpm" class="chart">
+        <div class="charthead"><span>Обороты, об/мин</span><b id="rpmNow">—</b></div>
+        <canvas id="chRpm"></canvas>
+      </div>
+      <div id="wrapCur" class="chart">
+        <div class="charthead"><span>Ток, А</span><b id="curNow">—</b></div>
+        <canvas id="chCur"></canvas>
+      </div>
+      <div id="chartInfo"></div>
       <div id="log"></div>
     </div>
 
@@ -326,6 +357,8 @@ canvas{width:100%;height:150px;display:block}
         <label class="f">CI<input type="number" id="ci" min="0" max="5000" step="1"></label>
         <label class="f">CL, отсч.<input type="number" id="clv" min="50" max="3000" step="1"></label>
         <label class="f">CN, отсч.<input type="number" id="cnv" min="5" max="3000" step="1"></label>
+        <label class="f">Шунт, Ом<input type="number" id="shunt" min="0.001" max="1" step="0.001"></label>
+        <label class="f">Усиление<input type="number" id="gain" min="1" max="100" step="0.1"></label>
       </div>
       <div class="btns" style="margin-top:8px">
         <button class="pri" id="advGo">Применить</button>
@@ -343,11 +376,22 @@ canvas{width:100%;height:150px;display:block}
 </div>
 <script>
 var $=function(i){return document.getElementById(i)};
-var ICNT=763;
+/* Калибровка тока: 1 А = 4095 * R * G / 3.3 отсчётов.
+   По умолчанию — шунт 0.082 Ом и усиление ACPL-C790 8.2 (Core/Inc/mc.h,
+   I_CNT_PER_A = 834). Свои значения хранятся в браузере. */
+var SHUNT=0.082, GAIN=8.2;
+function icnt(){ return 4095*SHUNT*GAIN/3.3; }
 var TRIP=['норма','перегрузка','пик тока','тепловая I\u00B2t','энкодер','разгон','стоянка под током','датчик тока','обрыв якоря','потеря связи','watchdog','аппаратный BKIN'];
 var PROT=['0 · мягкий','1 · отладка','2 · ТЕСТ','3 · тяговый'];
-var ON_SW=['кнопка PB12','ON','OF'];
+var ON_SW=['кнопка','ON','OF'];
 var st=null, hist=[], logs=[], chartT=0;
+var WIN_MS=60000, series='both', paused=false;
+try{
+  var _s=parseFloat(localStorage.getItem('shunt')); if(_s>0) SHUNT=_s;
+  var _g=parseFloat(localStorage.getItem('gain'));  if(_g>0) GAIN=_g;
+  var _r=localStorage.getItem('chartSeries'); if(_r) series=_r;
+  paused = localStorage.getItem('chartPaused')==='1';
+}catch(e){}
 
 function addLog(s){
   var t=new Date();
@@ -428,7 +472,7 @@ function render(j){
   $('rpmSet').textContent=j.rpm_set+' об/мин';
   $('pot').textContent=j.pot;
 
-  var amp=j.cur/ICNT, cl=j.cl/ICNT, rms=j.rms/ICNT;
+  var ic=icnt(), amp=j.cur/ic, cl=j.cl/ic, rms=j.rms/ic;
   $('amp').textContent=amp.toFixed(2);
   $('clA').textContent=cl.toFixed(2)+' А';
   $('rmsA').textContent=rms.toFixed(2)+' А';
@@ -437,6 +481,8 @@ function render(j){
   $('duty').textContent=(j.duty/10).toFixed(1)+' %';
   bar('dBar', j.duty/9);
   $('mv').textContent=j.mv+' В';
+  $('rpmNow').textContent=j.rpm+' об/мин';
+  $('curNow').textContent=amp.toFixed(2)+' А';
 
   setTxt('sOn',(j.on?'ВКЛ':'ВЫКЛ')+' · '+(ON_SW[j.on_sw]||'—'), j.on?'v-ok':'v-bad');
   setTxt('sTrip', j.trip?(TRIP[j.trip]||('код '+j.trip)):'нет', j.trip?'v-bad':'v-ok');
@@ -471,43 +517,94 @@ function render(j){
   setVal('clv',j.cls); setVal('cnv',j.cn);
 }
 
+/* --- Графики: два независимых полотна, окно 60 с по времени --- */
+
 function pushHist(j){
-  hist.push({r:j.rpm,a:j.cur/ICNT});
-  if(hist.length>140) hist.shift();
-  var now=Date.now();
-  if(now-chartT>400){ chartT=now; drawChart(); }
+  var ic=icnt(), now=Date.now();
+  hist.push({t:now, r:j.rpm, rs:j.rpm_set, a:j.cur/ic, rms:j.rms/ic});
+  while(hist.length && now-hist[0].t>WIN_MS) hist.shift();
+  if(!paused && now-chartT>250){ chartT=now; drawAll(); }
 }
 
-function drawChart(){
-  var c=$('ch'), dpr=window.devicePixelRatio||1;
-  var w=c.clientWidth||600, h=c.clientHeight||150;
-  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); }
+function seriesSet(s){
+  series=s;
+  try{ localStorage.setItem('chartSeries',s); }catch(e){}
+  var wr=$('wrapRpm'), wc=$('wrapCur');
+  if(wr) wr.classList.toggle('hide', s==='cur');
+  if(wc) wc.classList.toggle('hide', s==='rpm');
+  var b=document.querySelectorAll('[data-series]');
+  for(var i=0;i<b.length;i++) b[i].classList.toggle('on', b[i].dataset.series===s);
+  drawAll();
+}
+
+function setPause(p){
+  paused=!!p;
+  try{ localStorage.setItem('chartPaused', paused?'1':'0'); }catch(e){}
+  var b=$('pauseBtn');
+  if(b){ b.textContent=paused?'Продолжить':'Пауза'; b.classList.toggle('on',paused); }
+  if(!paused) drawAll();
+}
+
+function drawAll(){
+  if(series!=='cur') drawChart('chRpm','r','rs','#39d3a4','rgba(57,211,164,.55)','об/мин',0,100);
+  if(series!=='rpm') drawChart('chCur','a','rms','#f2b73c','rgba(242,183,60,.55)','А',2,0.1);
+}
+
+function drawChart(id,k1,k2,col,colDash,unit,dec,minMax){
+  var c=$(id); if(!c) return;
+
+  var dpr=window.devicePixelRatio||1;
+  var w=c.clientWidth||600, h=c.clientHeight||140;
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){
+    c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+  }
+
   var g=c.getContext('2d');
   g.setTransform(dpr,0,0,dpr,0,0);
   g.clearRect(0,0,w,h);
-  g.strokeStyle='#202836'; g.lineWidth=1;
+
+  var top=8, bottom=h-22;
+
+  g.strokeStyle='#1b232e'; g.lineWidth=1;
   for(var i=0;i<=4;i++){
-    var y=10+(h-20)*i/4;
+    var y=top+(bottom-top)*i/4;
     g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke();
   }
-  if(hist.length<2) return;
-  var rmax=1, amax=0.01;
-  for(var k=0;k<hist.length;k++){ if(hist[k].r>rmax) rmax=hist[k].r; if(hist[k].a>amax) amax=hist[k].a; }
-  rmax*=1.15; amax*=1.15;
-  plot(g,w,h,hist,'r',rmax,'#39d3a4');
-  plot(g,w,h,hist,'a',amax,'#f2b73c');
-  g.fillStyle='#8b98a9'; g.font='11px system-ui';
-  g.fillText('об/мин до '+Math.round(rmax)+'  ·  ток до '+amax.toFixed(2)+' А',8,12);
-}
 
-function plot(g,w,h,arr,key,max,color){
-  g.strokeStyle=color; g.lineWidth=1.6; g.beginPath();
-  var n=arr.length;
-  for(var i=0;i<n;i++){
-    var x=w*i/(n-1), y=h-10-(h-20)*Math.min(1,arr[i][key]/max);
-    if(i) g.lineTo(x,y); else g.moveTo(x,y);
+  g.fillStyle='#8b98a9'; g.font='10px system-ui';
+  g.fillText('-60 с',2,h-6);
+  g.textAlign='right'; g.fillText('сейчас',w-2,h-6); g.textAlign='left';
+
+  var now=Date.now(), t0=now-WIN_MS, pts=[];
+  for(var i=0;i<hist.length;i++) if(hist[i].t>=t0) pts.push(hist[i]);
+
+  if(pts.length<2) return;
+
+  var m=minMax;
+  for(var i=0;i<pts.length;i++){
+    if(pts[i][k1]>m) m=pts[i][k1];
+    if(pts[i][k2]>m) m=pts[i][k2];
   }
-  g.stroke();
+  m*=1.15;
+
+  function X(t){ return w*(t-t0)/WIN_MS; }
+  function Y(v){ return bottom-(bottom-top)*Math.min(1,v/m); }
+
+  function trace(key,color,dash){
+    g.strokeStyle=color; g.lineWidth=1.6; g.setLineDash(dash?[4,3]:[]);
+    g.beginPath();
+    for(var i=0;i<pts.length;i++){
+      var px=X(pts[i].t), py=Y(pts[i][key]);
+      if(i) g.lineTo(px,py); else g.moveTo(px,py);
+    }
+    g.stroke(); g.setLineDash([]);
+  }
+
+  trace(k2,colDash,true);
+  trace(k1,col,false);
+
+  g.fillStyle='#8b98a9'; g.font='10px system-ui';
+  g.fillText('до '+m.toFixed(dec)+' '+unit, 6, 12);
 }
 
 async function info(){
@@ -544,10 +641,33 @@ $('advGo').onclick=function(){
   }
 };
 
+document.addEventListener('click',function(e){
+  var s=e.target.closest('[data-series]');
+  if(s){ seriesSet(s.dataset.series); return; }
+  if(e.target.closest('#pauseBtn')) setPause(!paused);
+});
+
+function applyCal(){
+  var s=parseFloat($('shunt').value), g=parseFloat($('gain').value);
+  if(!(s>0)||!(g>0)) return;
+  SHUNT=s; GAIN=g;
+  try{ localStorage.setItem('shunt',String(s)); localStorage.setItem('gain',String(g)); }catch(e){}
+  $('chartInfo').textContent='1 А = '+Math.round(icnt())+' отсч.';
+  drawAll();
+}
+$('shunt').value=SHUNT;
+$('gain').value=GAIN;
+$('shunt').addEventListener('change',applyCal);
+$('gain').addEventListener('change',applyCal);
+$('chartInfo').textContent='1 А = '+Math.round(icnt())+' отсч.';
+
+seriesSet(series);
+setPause(paused);
+
 setInterval(poll,300);
 setInterval(info,5000);
-poll(); info(); drawChart();
-window.addEventListener('resize',drawChart);
+poll(); info(); drawAll();
+window.addEventListener('resize',drawAll);
 </script>
 </body>
 </html>)HTML";
