@@ -5,6 +5,7 @@
    1.1  два графика — обороты и ток, выбор серий, пауза, окно 60 с
    1.2  разомкнутый контур, тяговый режим, зоны ПИД, терминал, CSV-лог
    1.3  легенды под полями, русские названия, кнопка O-кадров убрана
+   1.4  CL/CN в амперах, подтверждение режима 2, поля RL/RH
 
    Открыли файл в Arduino IDE и в шапке видите 1.3 — версия свежая.
    Номер дублируется в панели: строка «диагностика» и /api/info (поле fw).
@@ -60,7 +61,7 @@
  *  НАСТРОЙКИ
  * ========================================================================== */
 
-#define FW_VERSION      "1.3"
+#define FW_VERSION      "1.4"
 
 /* Должно совпадать с WIFI_BAUD в Core/Inc/mc_wifi.h */
 #define LINK_BAUD       460800u
@@ -328,11 +329,18 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <button class="pri" id="rvGo">Задать</button>
         <button data-cmd="RP">На потенциометр</button>
       </div>
+      <div class="form" style="grid-template-columns:1fr 1fr;margin-top:8px">
+        <label class="f">RL, об/мин<input type="number" id="rl" min="30" max="5900" step="10"></label>
+        <label class="f">RH, об/мин<input type="number" id="rh" min="130" max="6000" step="10"></label>
+      </div>
+      <div class="btns" style="margin-top:8px">
+        <button class="pri" id="rangeGo">Задать диапазон</button>
+      </div>
       <div class="row"><span>рабочий диапазон RL..RH</span><b id="rvRange">—</b></div>
       <ul class="legend">
         <li><b>RV</b> — задание оборотов с панели, действует вместо потенциометра.</li>
         <li><b>RP</b> — вернуть задание на потенциометр.</li>
-        <li><b>RL..RH</b> — рабочий диапазон; задание вне него прошивка отвергнет.</li>
+        <li><b>RL..RH</b> — рабочий диапазон; задание вне него прошивка отвергнет, и ползунок RV шире него не встанет.</li>
         <li><b>PG</b> — панель шлёт раз в секунду; если закрыть браузер, через 5 с сработает TRIP_COMM.</li>
       </ul>
     </div>
@@ -673,6 +681,7 @@ function render(j){
   if(document.activeElement!==rv) rv.value=j.vs?j.vr:j.rpm_set;
   $('rvVal').textContent=rv.value;
   $('rvRange').textContent=j.rlo+'…'+j.rhi;
+  setVal('rl',j.rlo); setVal('rh',j.rhi);
 
   setVal('kp',j.kpu); setVal('ki',j.kiu); setVal('kd',j.kdu);
   $('pidEff').textContent=j.kp+' / '+j.ki+' / '+j.kd;
@@ -783,6 +792,16 @@ async function info(){
 
 $('rvGo').onclick=function(){ cmd('RV'+$('rv').value); };
 $('rv').addEventListener('change',function(){ cmd('RV'+$('rv').value); });
+$('rangeGo').onclick=function(){
+  var l=parseInt($('rl').value,10), h=parseInt($('rh').value,10);
+  if(isNaN(l)||isNaN(h)) return;
+  if(h-l<100){ addLog('\u2715 RL и RH должны различаться не меньше чем на 100'); return; }
+  /* Прошивка сверяет RL с текущим RH и RH с текущим RL, поэтому сначала
+     расширяем диапазон, а потом сужаем — иначе команда отвергнется молча. */
+  var curL = (st && st.rlo) ? st.rlo : 30;
+  if(l < curL){ cmd('RL'+l); cmd('RH'+h); }
+  else        { cmd('RH'+h); cmd('RL'+l); }
+};
 $('pidGo').onclick=function(){
   var kp=+$('kp').value, ki=+$('ki').value, kd=+$('kd').value;
   if(isNaN(kp)||isNaN(ki)||isNaN(kd)) return;
