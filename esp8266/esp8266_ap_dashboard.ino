@@ -366,14 +366,15 @@ canvas{width:100%;height:150px;display:block}
     <div class="card">
       <h2>Плавность и сеть</h2>
       <div class="form">
-        <label class="f">SS<input type="number" id="ss" min="1" max="100" step="1"></label>
-        <label class="f">RU<input type="number" id="ru" min="1" max="100" step="1"></label>
-        <label class="f">RD<input type="number" id="rd" min="1" max="100" step="1"></label>
+        <label class="f">Плавность ШИМ<span class="cmd">SS</span><input type="number" id="ss" min="1" max="100" step="1"></label>
+        <label class="f">Разгон уставки<span class="cmd">RU</span><input type="number" id="ru" min="1" max="100" step="1"></label>
+        <label class="f">Торможение уставки<span class="cmd">RD</span><input type="number" id="rd" min="1" max="100" step="1"></label>
       </div>
       <div class="form" style="grid-template-columns:1fr 1fr">
-        <label class="f">Сеть, В (UV)<input type="number" id="uv" min="100" max="300" step="1"></label>
-        <label class="f">Пауза, мс (P)<input type="number" id="pz" min="100" max="30000" step="100" placeholder="3000"></label>
+        <label class="f">Сеть, В<span class="cmd">UV</span><input type="number" id="uv" min="100" max="300" step="1"></label>
+        <label class="f">Пауза защиты, мс<span class="cmd">P</span><input type="number" id="pz" min="100" max="30000" step="100" placeholder="3000"></label>
       </div>
+      <p class="hint">SS — насколько резко ШИМ выходит на задание при пуске; меньше значение — плавнее. RU и RD — сколько оборотов уставка добавляет и сбрасывает за такт, чтобы задание не прыгало. UV нужен для расчёта напряжения на двигателе, P — выдержка после срабатывания токовой защиты.</p>
       <div class="btns" style="margin-top:8px">
         <button class="pri" id="smoothGo">Применить</button>
         <button data-cmd="w">Сохранить в Flash</button>
