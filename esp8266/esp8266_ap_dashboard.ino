@@ -497,8 +497,7 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <button class="pri" id="advGo">Применить</button>
         <button data-cmd="ZD">Выгрузить зоны</button>
         <button data-cmd="ZR">Зоны по умолчанию</button>
-        <button data-cmd="j">Формат JSON</button>
-        <button data-cmd="o">O-кадры</button>
+        <button data-cmd="j">Вернуть JSON</button>
         <button data-cmd="WE1">Мост ВКЛ</button>
         <button data-cmd="WE0">Мост ВЫКЛ</button>
       </div>
@@ -534,6 +533,13 @@ function addLog(s){
 }
 
 function cmd(c){
+  /* O-кадры (осциллограф) уходят только по USB: в мост Wi-Fi прошивка их не
+     отдаёт вовсе. Включив 'o' через панель, мы просто перестанем получать
+     телеметрию — поэтому не отправляем и говорим об этом в журнале. */
+  if(c==='o'){
+    addLog('\u2715 o: O-кадры идут только по USB, через Wi-Fi панель ослепнет');
+    return;
+  }
   fetch('/api/cmd?c='+encodeURIComponent(c),{cache:'no-store'}).then(function(r){
     addLog((r.ok?'\u2192 ':'\u2715 ')+c);
   }).catch(function(){ addLog('\u2715 '+c+' — нет связи'); });
