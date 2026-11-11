@@ -1,13 +1,14 @@
 /* ==========================================================================
-   ВЕРСИЯ ПАНЕЛИ 1.4      2026-11-11      ветка feature/dashboard-parity
+   ВЕРСИЯ ПАНЕЛИ 1.5      2026-11-11      ветка feature/dashboard-parity
 
    1.0  базовая панель: телеметрия, команды, TCP-мост, PG-пинг
    1.1  два графика — обороты и ток, выбор серий, пауза, окно 60 с
    1.2  разомкнутый контур, тяговый режим, зоны ПИД, терминал, CSV-лог
    1.3  легенды под полями, русские названия, кнопка O-кадров убрана
    1.4  CL/CN в амперах, подтверждение режима 2, поля RL/RH
+   1.5  мощность на двигателе и колонка p_w в CSV
 
-   Открыли файл в Arduino IDE и в шапке видите 1.4 — версия свежая.
+   Открыли файл в Arduino IDE и в шапке видите 1.5 — версия свежая.
    Номер дублируется в панели: строка «диагностика» и /api/info (поле fw).
    ========================================================================== */
 
@@ -61,7 +62,7 @@
  *  НАСТРОЙКИ
  * ========================================================================== */
 
-#define FW_VERSION      "1.4"
+#define FW_VERSION      "1.5"
 
 /* Должно совпадать с WIFI_BAUD в Core/Inc/mc_wifi.h */
 #define LINK_BAUD       460800u
@@ -275,6 +276,7 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
       <div class="row"><span>заполнение ШИМ</span><b id="duty">—</b></div>
       <div class="bar"><i id="dBar"></i></div>
       <div class="row"><span>напряжение двигателя</span><b id="mv">—</b></div>
+      <div class="row"><span>мощность (Uср × Iср)</span><b id="pwr">—</b></div>
     </div>
 
     <div class="card">
@@ -610,7 +612,7 @@ async function poll(){
       var ic0=icnt();
       csvRows.push([(Date.now()/1000).toFixed(2), j.rpm, j.rpm_set,
         (j.cur/ic0).toFixed(3), (j.rms/ic0).toFixed(3),
-        (j.duty/10).toFixed(1), j.mv, j.trip].join(',')+'\n');
+        (j.duty/10).toFixed(1), j.mv, (j.mv*j.cur/ic0).toFixed(1), j.trip].join(',')+'\n');
     }
     if(h==='ok'){ link(true,'STM32: онлайн'); dim(false); pushHist(j); }
     else { link(false,'STM32: молчит '+Math.round(age/1000)+' с'); dim(true); }
@@ -649,6 +651,10 @@ function render(j){
   $('duty').textContent=(j.duty/10).toFixed(1)+' %';
   bar('dBar', j.duty/9);
   $('mv').textContent=j.mv+' В';
+  /* Мощность считаем по средним: P = Uср × Iср. RMS тока даёт нагрев обмотки,
+     а не мощность из шины. */
+  var pwr=j.mv*amp;
+  $('pwr').textContent=(pwr>=100?Math.round(pwr):pwr.toFixed(1))+' Вт';
   $('rpmNow').textContent=j.rpm+' об/мин';
   $('curNow').textContent=amp.toFixed(2)+' А';
 
@@ -902,7 +908,7 @@ $('csvBtn').onclick=function(){
   }
   csvOn=false;
   $('csvBtn').textContent='Записать CSV'; $('csvBtn').classList.remove('on');
-  var head='t,rpm,rpm_set,cur_a,rms_a,duty_pct,mv,trip\n';
+  var head='t,rpm,rpm_set,cur_a,rms_a,duty_pct,mv,p_w,trip\n';
   var blob=new Blob([head+csvRows.join('')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
