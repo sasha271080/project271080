@@ -160,12 +160,12 @@ h1{font-size:18px;margin:0 0 2px;font-weight:650}
 .chip.ok{color:#08130f;background:var(--acc);border-color:var(--acc);font-weight:600}
 .chip.bad{color:#fff;background:var(--bad);border-color:var(--bad);font-weight:600}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
 .card h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 10px;font-weight:600}
 .big{font-size:38px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
 .big small{font-size:13px;color:var(--dim);font-weight:400;margin-left:4px}
-.row{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-top:6px;color:var(--dim)}
-.row b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:600}
+.row{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;margin-top:6px;color:var(--dim)}
+.row b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:600;min-width:0;overflow-wrap:anywhere;text-align:right}
 b.v-ok{color:var(--acc)} b.v-bad{color:var(--bad)} b.v-warn{color:var(--warn)}
 .bar{height:8px;border-radius:6px;background:#0d1218;overflow:hidden;margin-top:6px;border:1px solid var(--line)}
 .bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
@@ -181,9 +181,11 @@ button.dng{background:#3a1d1d;border-color:#5a2a2a;color:#ffb3b3}
 .seg button{padding:8px 4px}
 .seg button.on{background:#20313a;border-color:var(--acc);color:var(--acc);font-weight:600}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dim)}
-input[type=number],input[type=range]{font:inherit;background:#0d1218;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:6px 8px;width:100%}
+input[type=number],input[type=range]{font:inherit;background:#0d1218;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:6px 8px;width:100%;min-width:0}
 input[type=range]{padding:0;height:28px}
 .form{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.form4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:560px){.form{grid-template-columns:repeat(2,1fr)}.form4{grid-template-columns:repeat(2,1fr)}}
 .tgl{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #202836;font-size:13px}
 .tgl:last-child{border-bottom:0}
 .sw{position:relative;width:41px;height:23px;flex:0 0 auto}
@@ -209,6 +211,7 @@ canvas{width:100%;height:150px;display:block}
 #chRpm,#chCur{width:100%;height:140px;display:block}
 #chartInfo{font-size:11px;color:var(--dim)}
 #log{font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--dim);max-height:110px;overflow:auto;background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap}
+#log:empty{display:none}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
 .wide{grid-column:1/-1}
 .wrap.stale .big,.wrap.stale .row b{opacity:.4}
@@ -253,7 +256,7 @@ canvas{width:100%;height:150px;display:block}
       <div class="row"><span>тепловая / макс.</span><b id="sTeMe">—</b></div>
       <div class="row"><span>ПИД</span><b id="sAuto">—</b></div>
       <div class="row"><span>задатчик</span><b id="sVs">—</b></div>
-      <div class="row"><span>линия</span><b id="cnt">—</b></div>
+      <div class="row"><span>диагностика</span><b id="cnt">—</b></div>
     </div>
 
     <div class="card">
@@ -348,7 +351,7 @@ canvas{width:100%;height:150px;display:block}
 
     <details class="card wide">
       <summary>Дополнительные параметры</summary>
-      <div class="form" style="grid-template-columns:repeat(4,1fr)">
+      <div class="form form4">
         <label class="f">FR<input type="number" id="fr" min="1" max="4" step="1"></label>
         <label class="f">FD<input type="number" id="fd" min="1" max="4" step="1"></label>
         <label class="f">SL<input type="number" id="sl" min="1" max="8" step="1"></label>
