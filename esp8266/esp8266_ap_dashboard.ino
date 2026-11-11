@@ -186,9 +186,11 @@ button.dng{background:#3a1d1d;border-color:#5a2a2a;color:#ffb3b3}
 .seg button{padding:8px 4px}
 .seg button.on{background:#20313a;border-color:var(--acc);color:var(--acc);font-weight:600}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dim)}
+label.f .cmd{font-size:10px;color:#5f6b7a;letter-spacing:.04em;margin-left:4px}
 input[type=number],input[type=range]{font:inherit;background:#0d1218;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:6px 8px;width:100%;min-width:0}
 input[type=range]{padding:0;height:28px}
 .form{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.form .f{justify-content:flex-end}
 .form4{grid-template-columns:repeat(4,1fr)}
 @media (max-width:560px){.form{grid-template-columns:repeat(2,1fr)}.form4{grid-template-columns:repeat(2,1fr)}}
 .tgl{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #202836;font-size:13px}
@@ -425,19 +427,20 @@ canvas{width:100%;height:150px;display:block}
     </div>
 
     <details class="card wide">
-      <summary>Дополнительные параметры</summary>
+      <summary>Тонкая настройка</summary>
       <div class="form form4">
-        <label class="f">FR<input type="number" id="fr" min="1" max="4" step="1"></label>
-        <label class="f">FD<input type="number" id="fd" min="1" max="4" step="1"></label>
-        <label class="f">SL<input type="number" id="sl" min="1" max="8" step="1"></label>
-        <label class="f">BT, мс<input type="number" id="bt" min="0" max="5000" step="50"></label>
-        <label class="f">CP<input type="number" id="cp" min="1" max="5000" step="1"></label>
-        <label class="f">CI<input type="number" id="ci" min="0" max="5000" step="1"></label>
-        <label class="f">CL, отсч.<input type="number" id="clv" min="50" max="3000" step="1"></label>
-        <label class="f">CN, отсч.<input type="number" id="cnv" min="5" max="3000" step="1"></label>
-        <label class="f">Шунт, Ом<input type="number" id="shunt" min="0.001" max="1" step="0.001"></label>
-        <label class="f">Усиление<input type="number" id="gain" min="1" max="100" step="0.1"></label>
+        <label class="f">Фильтр оборотов<span class="cmd">FR</span><input type="number" id="fr" min="1" max="4" step="1"></label>
+        <label class="f">Фильтр скорости D<span class="cmd">FD</span><input type="number" id="fd" min="1" max="4" step="1"></label>
+        <label class="f">Делитель контура<span class="cmd">SL</span><input type="number" id="sl" min="1" max="8" step="1"></label>
+        <label class="f">Форсаж, мс<span class="cmd">BT</span><input type="number" id="bt" min="0" max="5000" step="50"></label>
+        <label class="f">Пропорц. тока<span class="cmd">CP</span><input type="number" id="cp" min="1" max="5000" step="1"></label>
+        <label class="f">Интегр. тока<span class="cmd">CI</span><input type="number" id="ci" min="0" max="5000" step="1"></label>
+        <label class="f">Предел тока, отсч.<span class="cmd">CL</span><input type="number" id="clv" min="50" max="3000" step="1"></label>
+        <label class="f">Нижний порог, отсч.<span class="cmd">CN</span><input type="number" id="cnv" min="5" max="3000" step="1"></label>
+        <label class="f">Шунт, Ом<span class="cmd">R</span><input type="number" id="shunt" min="0.001" max="1" step="0.001"></label>
+        <label class="f">Усиление<span class="cmd">G</span><input type="number" id="gain" min="1" max="100" step="0.1"></label>
       </div>
+      <p class="hint">CL — предел тока, CN — нижняя граница порога PA3. 834 отсчёта АЦП = 1 А при шунте 0,082 Ом и усилении 8,2.</p>
       <div class="btns" style="margin-top:8px">
         <button class="pri" id="advGo">Применить</button>
         <button data-cmd="ZD">Выгрузить зоны</button>
