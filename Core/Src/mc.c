@@ -1373,6 +1373,8 @@ static void button_task(void)
  * ========================================================================== */
 static char zbuf[256];
 
+static uint8_t zone_try = 0;   /* сколько тиков уже пытались отдать таблицу зон */
+
 static void zones_dump(void)
 {
   int n = snprintf(zbuf, sizeof(zbuf), "{\"zones\":[");
@@ -1385,8 +1387,22 @@ static void zones_dump(void)
 
   if (n > 0 && n < (int)sizeof(zbuf))
   {
-    if (CDC_Transmit_FS((uint8_t *)zbuf, (uint16_t)n) == USBD_OK)
-      mc_zone_dump_req = 0;      /* занят USB — повторим следующим тиком */
+    uint8_t usb_ok  = (CDC_Transmit_FS((uint8_t *)zbuf, (uint16_t)n) == USBD_OK) ? 1u : 0u;
+    uint8_t wifi_ok = mc_wifi_send(zbuf, (uint16_t)n);
+
+    /* Таблица ушла хотя бы одному потребителю — запрос закрыт: и тюнер по USB,
+       и панель по Wi-Fi получают её одинаково. Если не вышло ни там, ни там,
+       повторяем, но не дольше пяти тиков. Иначе без USB-хоста
+       CDC_Transmit_FS вечно возвращает BUSY, флаг не снимался, и telemetry()
+       замолкала до перезагрузки — нажатие «Выгрузить зоны» по Wi-Fi глушило
+       телеметрию целиком. */
+    if (usb_ok || wifi_ok)     { mc_zone_dump_req = 0; zone_try = 0; }
+    else if (++zone_try >= 5u) { mc_zone_dump_req = 0; zone_try = 0; }
+  }
+  else
+  {
+    mc_zone_dump_req = 0;
+    zone_try = 0;
   }
 }
 
