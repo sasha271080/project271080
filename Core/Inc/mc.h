@@ -89,7 +89,7 @@
 #define SPEED_LOOP_DIV      16u
 /* Настраиваемые фильтры и делитель контура (команды FR/FD/SL):
    FR<n> — сдвиг фильтра оборотов (1..4), FD<n> — сдвиг фильтра D (1..4),
-   SL<n> — делитель контура скорости (1..8). */
+   SL<n> — делитель контура скорости (1..32, заводское 16). */
 extern volatile uint32_t rpm_filt_shift;
 extern volatile uint32_t derr_filt_shift;
 extern volatile uint32_t speed_loop_div;

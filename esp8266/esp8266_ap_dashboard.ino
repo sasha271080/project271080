@@ -493,7 +493,7 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
       <div class="form form4">
         <label class="f">FR<input type="number" id="fr" min="1" max="4" step="1"></label>
         <label class="f">FD<input type="number" id="fd" min="1" max="4" step="1"></label>
-        <label class="f">SL<input type="number" id="sl" min="1" max="8" step="1"></label>
+        <label class="f">SL<input type="number" id="sl" min="1" max="32" step="1"></label>
         <label class="f">BT, мс<input type="number" id="bt" min="0" max="5000" step="100"></label>
         <label class="f">CP<input type="number" id="cp" min="1" max="5000" step="1"></label>
         <label class="f">CI<input type="number" id="ci" min="0" max="5000" step="1"></label>
@@ -505,7 +505,7 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
       <ul class="legend">
         <li><b>FR</b> — фильтр оборотов, 1..4: сильнее сглаживает, но добавляет запаздывание.</li>
         <li><b>FD</b> — фильтр дифференциальной части контура скорости, 1..4.</li>
-        <li><b>SL</b> — делитель контура: во сколько раз реже пересчитывается скорость, 1..8.</li>
+        <li><b>SL</b> — делитель контура: во сколько раз реже пересчитывается скорость, 1..32; заводское значение 16.</li>
         <li><b>BT</b> — форсаж при набросе нагрузки, мс; 0 — выключен, значения 1…99 прошивка не принимает.</li>
         <li><b>CP</b> — пропорциональный коэффициент контура тока.</li>
         <li><b>CI</b> — интегральный коэффициент контура тока.</li>

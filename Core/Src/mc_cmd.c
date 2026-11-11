@@ -248,8 +248,10 @@ void mc_cmd_parse(const uint8_t *buf, uint32_t len)
   if (match(buf, len, "FD", 2) && parse_u32(buf, len, 2, &v))
   { if (v >= 1 && v <= 4) derr_filt_shift = (uint32_t)v; return; }
 
+  /* SL1..SL32: заводское значение speed_loop_div = 16, поэтому прежний
+     потолок 8 не давал вернуть его обратно после первой же команды SL. */
   if (match(buf, len, "SL", 2) && parse_u32(buf, len, 2, &v))
-  { if (v >= 1 && v <= 8) speed_loop_div = (uint32_t)v; return; }
+  { if (v >= 1 && v <= 32) speed_loop_div = (uint32_t)v; return; }
 
   /* KPxxx / KIxxx / KDxxx — контур СКОРОСТИ */
   if (buf[0] == 'K' && len >= 3 && parse_u32(buf, len, 2, &v))
