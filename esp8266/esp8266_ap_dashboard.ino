@@ -104,6 +104,11 @@ static char     lastFrame[FRAME_MAX];
 static uint16_t lastLen     = 0;
 static uint32_t lastFrameMs = 0;
 
+/* --- таблица зон: приходит отдельной строкой на ZD, а не телеметрией --- */
+static char     zoneFrame[FRAME_MAX];
+static uint16_t zoneLen = 0;
+static uint32_t zoneMs  = 0;
+
 /* --- сборка кадра из потока --- */
 static char     fbuf[FRAME_MAX];
 static uint16_t flen  = 0;
@@ -212,6 +217,13 @@ canvas{width:100%;height:150px;display:block}
 #chartInfo{font-size:11px;color:var(--dim)}
 #log{font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--dim);max-height:110px;overflow:auto;background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap}
 #log:empty{display:none}
+.ztab{width:100%;border-collapse:collapse;font-size:12px}
+.ztab th{text-align:left;font-weight:600;color:var(--dim);font-size:11px;padding:2px 4px}
+.ztab td{padding:2px 4px}
+.ztab td:first-child{color:var(--dim);width:18px}
+.ztab input{width:100%;padding:4px 6px;font-size:12px}
+#termOut{font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--dim);max-height:130px;overflow:auto;background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap}
+#csvBtn.on{background:#3a331d;border-color:var(--warn);color:var(--warn)}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
 .wide{grid-column:1/-1}
 .wrap.stale .big,.wrap.stale .row b{opacity:.4}
@@ -311,6 +323,45 @@ canvas{width:100%;height:150px;display:block}
     </div>
 
     <div class="card">
+      <h2>Разомкнутый контур</h2>
+      <div class="btns">
+        <button class="pri" id="olOn">Включить</button>
+        <button id="olOff">Выключить</button>
+      </div>
+      <div class="row"><span>состояние</span><b id="olState">—</b></div>
+      <div class="tgl">ШИМ с потенциометра (OT)<label class="sw"><input type="checkbox" id="ot"><span></span></label></div>
+      <label class="f" style="margin-top:8px">ШИМ напрямую, ‰ (OP)
+        <input type="number" id="op" min="0" max="900" step="5" placeholder="0">
+      </label>
+      <div class="btns" style="margin-top:8px">
+        <button class="pri" id="opGo">Задать ШИМ</button>
+      </div>
+      <p class="hint">Регуляторы здесь не работают: ШИМ идёт напрямую, выход из режима обнуляет задание. С тяговым режимом несовместим.</p>
+    </div>
+
+    <div class="card">
+      <h2>Тяговый режим</h2>
+      <div class="btns">
+        <button class="pri" id="tqOn">Включить</button>
+        <button id="tqOff">Выключить</button>
+      </div>
+      <div class="row"><span>состояние</span><b id="tqState">—</b></div>
+      <div class="form form4" style="margin-top:8px">
+        <label class="f">TC, об/мин<input type="number" id="tc" min="30" max="6000" step="10"></label>
+        <label class="f">TB<input type="number" id="tb" min="0" max="2000" step="10"></label>
+        <label class="f">TZ<input type="number" id="tz" min="0" max="500" step="5"></label>
+        <label class="f">TR<input type="number" id="tr" min="1" max="200" step="1"></label>
+        <label class="f">TM<input type="number" id="tm" min="0" max="3000" step="10"></label>
+        <label class="f">TF<input type="number" id="tf" min="0" max="1000" step="10"></label>
+        <label class="f">TS, мс<input type="number" id="ts" min="0" max="600000" step="500"></label>
+      </div>
+      <div class="btns" style="margin-top:8px">
+        <button class="pri" id="tqGo">Применить</button>
+      </div>
+      <p class="hint">Момент вместо скорости: уставка пересчитывается в ток. Взаимоисключающ с разомкнутым контуром.</p>
+    </div>
+
+    <div class="card">
       <h2>Плавность и сеть</h2>
       <div class="form">
         <label class="f">SS<input type="number" id="ss" min="1" max="100" step="1"></label>
@@ -325,6 +376,30 @@ canvas{width:100%;height:150px;display:block}
         <button class="pri" id="smoothGo">Применить</button>
         <button data-cmd="w">Сохранить в Flash</button>
       </div>
+    </div>
+
+    <div class="card wide">
+      <div class="chartbar">
+        <h2>Зоны ПИД</h2>
+        <button id="zdBtn">Выгрузить</button>
+        <button data-cmd="ZR">Сброс</button>
+        <button class="pri" id="zGo">Записать</button>
+      </div>
+      <table class="ztab" id="ztab">
+        <thead><tr><th>#</th><th>об/мин</th><th>Kp</th><th>Ki</th><th>Kd</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="hint">Адаптивные коэффициенты по зонам оборотов. ZD приходит отдельной строкой и телеметрию не сбивает.</p>
+    </div>
+
+    <div class="card wide">
+      <h2>Терминал</h2>
+      <div class="btns">
+        <input type="text" id="termIn" placeholder="команда, например KP300" autocomplete="off" style="flex:1 1 200px;min-width:0">
+        <button class="pri" id="termGo">Отправить</button>
+        <button id="csvBtn">Записать CSV</button>
+      </div>
+      <pre id="termOut">—</pre>
     </div>
 
     <div class="card wide">
@@ -447,6 +522,12 @@ async function poll(){
       return;
     }
     st=j; render(j);
+    if(csvOn && csvRows.length<20000){
+      var ic0=icnt();
+      csvRows.push([(Date.now()/1000).toFixed(2), j.rpm, j.rpm_set,
+        (j.cur/ic0).toFixed(3), (j.rms/ic0).toFixed(3),
+        (j.duty/10).toFixed(1), j.mv, j.trip].join(',')+'\n');
+    }
     if(h==='ok'){ link(true,'STM32: онлайн'); dim(false); pushHist(j); }
     else { link(false,'STM32: молчит '+Math.round(age/1000)+' с'); dim(true); }
   }catch(e){ dim(true); link(false,'STM32: нет связи'); }
@@ -494,6 +575,11 @@ function render(j){
   setTxt('sTeMe',(j.te?'TE вкл':'TE выкл')+' / '+(j.me?'ME вкл':'ME выкл'), (j.te&&j.me)?'v-ok':'');
   setTxt('sAuto',(j.auto?'авто':'ручной')+(j.rip?' · пульсации':''), j.auto?'v-ok':'');
   setTxt('sVs', j.vs?('RV '+j.vr):'потенциометр', j.vs?'v-warn':'');
+  setTxt('olState', j.ol?('включён · '+((j.olduty||0)/10).toFixed(1)+' %'):'выключен', j.ol?'v-warn':'');
+  if(j.ol) setVal('op', j.olduty);
+  setTxt('tqState', j.tq?'включён':'выключен', j.tq?'v-warn':'');
+  setVal('tc',j.tcap); setVal('tb',j.tband); setVal('tz',j.tdz); setVal('tr',j.trate);
+  setVal('tm',j.timax); setVal('tf',j.tfloor); setVal('ts',j.thold);
 
   var ct=$('chipTrip');
   if(j.trip){
@@ -550,7 +636,7 @@ function setPause(p){
 
 function drawAll(){
   if(series!=='cur') drawChart('chRpm','r','rs','#39d3a4','rgba(57,211,164,.55)','об/мин',0,100);
-  if(series!=='rpm') drawChart('chCur','a','rms','#f2b73c','rgba(242,183,60,.55)','А',2,0.1);
+  if(series!=='rpm') drawChart('chCur','a',null,'#f2b73c','rgba(242,183,60,.55)','А',2,0.1);
 }
 
 function drawChart(id,k1,k2,col,colDash,unit,dec,minMax){
@@ -586,7 +672,7 @@ function drawChart(id,k1,k2,col,colDash,unit,dec,minMax){
   var m=minMax;
   for(var i=0;i<pts.length;i++){
     if(pts[i][k1]>m) m=pts[i][k1];
-    if(pts[i][k2]>m) m=pts[i][k2];
+    if(k2 && pts[i][k2]>m) m=pts[i][k2];
   }
   m*=1.15;
 
@@ -603,7 +689,7 @@ function drawChart(id,k1,k2,col,colDash,unit,dec,minMax){
     g.stroke(); g.setLineDash([]);
   }
 
-  trace(k2,colDash,true);
+  if(k2) trace(k2,colDash,true);
   trace(k1,col,false);
 
   g.fillStyle='#8b98a9'; g.font='10px system-ui';
@@ -627,6 +713,107 @@ $('pidGo').onclick=function(){
   cmd('KP'+Math.max(0,Math.min(5000,Math.round(kp))));
   cmd('KI'+Math.max(0,Math.min(5000,Math.round(ki))));
   cmd('KD'+Math.max(0,Math.min(5000,Math.round(kd))));
+};
+$('olOn').onclick=function(){ cmd('OL1'); };
+$('olOff').onclick=function(){ cmd('OL0'); };
+$('opGo').onclick=function(){
+  var v=+$('op').value;
+  if(!isNaN(v)) cmd('OP'+Math.max(0,Math.min(900,Math.round(v))));
+};
+$('ot').addEventListener('change',function(){ cmd('OT'+(this.checked?1:0)); });
+$('tqOn').onclick=function(){ cmd('TQ1'); };
+$('tqOff').onclick=function(){ cmd('TQ0'); };
+$('tqGo').onclick=function(){
+  var m=[['tc','TC'],['tb','TB'],['tz','TZ'],['tr','TR'],['tm','TM'],['tf','TF'],['ts','TS']];
+  for(var i=0;i<m.length;i++){
+    var v=$(m[i][0]).value;
+    if(v!=='') cmd(m[i][1]+v);
+  }
+};
+
+/* --- зоны: таблица строится под 6 зон прошивки (ZONES_N) --- */
+var ZROWS=6;
+(function(){
+  var tb=$('ztab').tBodies[0];
+  for(var n=0;n<ZROWS;n++){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+(n+1)+'</td>'+
+      '<td><input type="number" id="z'+n+'r" min="30" max="12000" step="10"></td>'+
+      '<td><input type="number" id="z'+n+'p" min="0" max="5000" step="1"></td>'+
+      '<td><input type="number" id="z'+n+'i" min="0" max="5000" step="1"></td>'+
+      '<td><input type="number" id="z'+n+'d" min="0" max="5000" step="1"></td>';
+    tb.appendChild(tr);
+  }
+})();
+
+function fillZones(a){
+  for(var n=0;n<ZROWS && n<a.length;n++){
+    setVal('z'+n+'r',a[n][0]); setVal('z'+n+'p',a[n][1]);
+    setVal('z'+n+'i',a[n][2]); setVal('z'+n+'d',a[n][3]);
+  }
+}
+
+async function pullZones(){
+  try{
+    var r=await fetch('/api/zones?t='+Date.now(),{cache:'no-store'});
+    var j=await r.json();
+    if(j && j.zones){ fillZones(j.zones); addLog('зоны: '+j.zones.length+' шт.'); }
+    else addLog('зоны: пусто — нажмите «Выгрузить»');
+  }catch(e){ addLog('\u2715 зоны не получены'); }
+}
+
+$('zdBtn').onclick=function(){
+  cmd('ZD');
+  setTimeout(pullZones,500);
+  setTimeout(pullZones,1200);
+};
+$('zGo').onclick=function(){
+  for(var n=0;n<ZROWS;n++){
+    var r=$('z'+n+'r').value, p=$('z'+n+'p').value, i=$('z'+n+'i').value, d=$('z'+n+'d').value;
+    if(r!=='') cmd('Z'+n+'R'+Math.round(r));
+    if(p!=='') cmd('Z'+n+'P'+Math.round(p));
+    if(i!=='') cmd('Z'+n+'I'+Math.round(i));
+    if(d!=='') cmd('Z'+n+'D'+Math.round(d));
+  }
+};
+
+/* --- терминал: любые команды из белого списка и запись телеметрии в CSV --- */
+var termLines=[], csvRows=[], csvOn=false;
+
+function termLog(s){
+  termLines.push(new Date().toLocaleTimeString()+'  '+s);
+  if(termLines.length>80) termLines.shift();
+  $('termOut').textContent=termLines.join('\n');
+  $('termOut').scrollTop=1e6;
+}
+
+$('termIn').addEventListener('keydown',function(e){
+  if(e.key==='Enter') $('termGo').click();
+});
+
+$('termGo').onclick=function(){
+  var v=$('termIn').value.trim();
+  if(!v) return;
+  cmd(v); termLog('\u2192 '+v);
+  $('termIn').value='';
+};
+
+$('csvBtn').onclick=function(){
+  if(!csvOn){
+    csvOn=true; csvRows=[];
+    $('csvBtn').textContent='Стоп и скачать'; $('csvBtn').classList.add('on');
+    termLog('запись CSV начата');
+    return;
+  }
+  csvOn=false;
+  $('csvBtn').textContent='Записать CSV'; $('csvBtn').classList.remove('on');
+  var head='t,rpm,rpm_set,cur_a,rms_a,duty_pct,mv,trip\n';
+  var blob=new Blob([head+csvRows.join('')],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='telemetry-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  termLog('CSV: '+csvRows.length+' строк');
 };
 $('smoothGo').onclick=function(){
   var ss=$('ss').value, ru=$('ru').value, rd=$('rd').value, uv=$('uv').value, pz=$('pz').value;
@@ -755,7 +942,23 @@ static void frameFeed(const uint8_t *p, size_t n)
     fbuf[flen++] = c;
 
     if (c == '{') depth++;
-    else if (c == '}') { depth--; if (depth == 0) publishFrame(); }
+    else if (c == '}')
+    {
+      depth--;
+      if (depth == 0)
+      {
+        fbuf[flen] = '\0';
+        /* ZD отдаёт {"zones":[[...],...]} — это не телеметрия: если пустить
+           её в lastFrame, панель на один опрос потеряет обороты. Держим отдельно. */
+        if (flen > 9 && strncmp(fbuf, "{\"zones\":", 9) == 0)
+        {
+          memcpy(zoneFrame, fbuf, (size_t)flen + 1u);
+          zoneLen = flen;
+          zoneMs  = millis();
+        }
+        else publishFrame();
+      }
+    }
   }
 }
 
@@ -962,6 +1165,13 @@ static void handleData()
   web.send(200, "application/json", lastFrame);
 }
 
+static void handleZones()
+{
+  web.sendHeader("Cache-Control", "no-store");
+  if (zoneLen == 0) { web.send(200, "application/json", "{}"); return; }
+  web.send(200, "application/json", zoneFrame);
+}
+
 static void handleCmd()
 {
   lastPollMs = millis();
@@ -1087,6 +1297,7 @@ void setup()
   web.on("/api/data", handleData);
   web.on("/api/cmd", handleCmd);
   web.on("/api/info", handleInfo);
+  web.on("/api/zones", handleZones);
   web.on("/favicon.ico", handleFavicon);
   web.begin();
 
