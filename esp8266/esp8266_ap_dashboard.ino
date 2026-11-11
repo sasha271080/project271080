@@ -486,11 +486,11 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <label class="f">FR<input type="number" id="fr" min="1" max="4" step="1"></label>
         <label class="f">FD<input type="number" id="fd" min="1" max="4" step="1"></label>
         <label class="f">SL<input type="number" id="sl" min="1" max="8" step="1"></label>
-        <label class="f">BT, мс<input type="number" id="bt" min="0" max="5000" step="50"></label>
+        <label class="f">BT, мс<input type="number" id="bt" min="0" max="5000" step="100"></label>
         <label class="f">CP<input type="number" id="cp" min="1" max="5000" step="1"></label>
         <label class="f">CI<input type="number" id="ci" min="0" max="5000" step="1"></label>
-        <label class="f">CL, отсч.<input type="number" id="clv" min="50" max="3000" step="1"></label>
-        <label class="f">CN, отсч.<input type="number" id="cnv" min="5" max="3000" step="1"></label>
+        <label class="f">CL, А<input type="number" id="clv" min="0.05" max="3.5" step="0.01"></label>
+        <label class="f">CN, А<input type="number" id="cnv" min="0.01" max="3.5" step="0.01"></label>
         <label class="f">R, Ом<input type="number" id="shunt" min="0.001" max="1" step="0.001"></label>
         <label class="f">G<input type="number" id="gain" min="1" max="100" step="0.1"></label>
       </div>
@@ -498,11 +498,11 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <li><b>FR</b> — фильтр оборотов, 1..4: сильнее сглаживает, но добавляет запаздывание.</li>
         <li><b>FD</b> — фильтр дифференциальной части контура скорости, 1..4.</li>
         <li><b>SL</b> — делитель контура: во сколько раз реже пересчитывается скорость, 1..8.</li>
-        <li><b>BT</b> — форсаж: надбавка при набросе нагрузки, 0 — выключен.</li>
+        <li><b>BT</b> — форсаж при набросе нагрузки, мс; 0 — выключен, значения 1…99 прошивка не принимает.</li>
         <li><b>CP</b> — пропорциональный коэффициент контура тока.</li>
         <li><b>CI</b> — интегральный коэффициент контура тока.</li>
-        <li><b>CL</b> — предел тока в отсчётах АЦП: 834 отсчёта = 1 А.</li>
-        <li><b>CN</b> — нижняя граница порога PA3, отсчёты.</li>
+        <li><b>CL</b> — предел тока в амперах; в прошивку уходит в отсчётах АЦП.</li>
+        <li><b>CN</b> — нижняя граница порога PA3 в амперах, выше CL не поднимается.</li>
         <li><b>R, G</b> — шунт и усиление только для пересчёта в амперы в браузере, в STM32 не уходят.</li>
       </ul>
       <div class="btns" style="margin-top:8px">
@@ -568,7 +568,10 @@ document.addEventListener('click',function(e){
     cmd(b.dataset.cmd); return;
   }
   var m=e.target.closest('[data-mode]');
-  if(m) cmd(m.dataset.mode);
+  if(m){
+    if(m.dataset.mode==='2' && !confirm('Режим 2 — защита отключена. Пока он включён, мотор остаётся без токовой и тепловой защиты. Включить?')) return;
+    cmd(m.dataset.mode);
+  }
 });
 
 document.addEventListener('change',function(e){
@@ -676,7 +679,7 @@ function render(j){
   setVal('ss',j.ss); setVal('ru',j.ru); setVal('rd',j.rd); setVal('uv',j.uv);
   setVal('fr',j.fr); setVal('fd',j.fd); setVal('sl',j.sl);
   setVal('cp',j.cikp); setVal('ci',j.ciki); setVal('bt',j.bt);
-  setVal('clv',j.cls); setVal('cnv',j.cn);
+  setVal('clv',(j.cls/ic).toFixed(2)); setVal('cnv',(j.cn/ic).toFixed(2));
 }
 
 /* --- Графики: два независимых полотна, окно 60 с по времени --- */
@@ -897,11 +900,15 @@ $('smoothGo').onclick=function(){
   if(pz) cmd('P'+pz);
 };
 $('advGo').onclick=function(){
-  var m=[['fr','FR'],['fd','FD'],['sl','SL'],['cp','CP'],['ci','CI'],['bt','BT'],['clv','CL'],['cnv','CN']];
+  var m=[['fr','FR'],['fd','FD'],['sl','SL'],['cp','CP'],['ci','CI'],['bt','BT']];
   for(var i=0;i<m.length;i++){
     var v=$(m[i][0]).value;
     if(v!=='') cmd(m[i][1]+v);
   }
+  /* CL и CN вводятся в амперах, а прошивка ждёт отсчёты АЦП */
+  var cl=parseFloat($('clv').value), cn=parseFloat($('cnv').value);
+  if(cl>0) cmd('CL'+Math.round(cl*icnt()));
+  if(cn>0) cmd('CN'+Math.round(cn*icnt()));
 };
 
 document.addEventListener('click',function(e){
