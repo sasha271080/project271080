@@ -227,6 +227,9 @@ canvas{width:100%;height:150px;display:block}
 #termOut{font:11px/1.5 ui-monospace,Consolas,monospace;color:var(--dim);max-height:130px;overflow:auto;background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;white-space:pre-wrap}
 #csvBtn.on{background:#3a331d;border-color:var(--warn);color:var(--warn)}
 .hint{color:var(--dim);font-size:12px;margin:8px 0 0}
+ul.legend{margin:6px 0 0;padding:0;list-style:none;font-size:11px;line-height:1.55;color:var(--dim)}
+ul.legend li{display:flex;gap:6px}
+ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
 .wide{grid-column:1/-1}
 .wrap.stale .big,.wrap.stale .row b{opacity:.4}
 .wrap.stale .bar i{opacity:.4}
@@ -361,6 +364,15 @@ canvas{width:100%;height:150px;display:block}
         <button class="pri" id="tqGo">Применить</button>
       </div>
       <p class="hint">Момент вместо скорости: уставка пересчитывается в ток. Взаимоисключающ с разомкнутым контуром.</p>
+      <ul class="legend">
+        <li><b>TC</b> — обороты, с которых начинается мягкое ограничение тяги.</li>
+        <li><b>TB</b> — ширина полосы ниже TC; в ней ток плавно гасится до нуля.</li>
+        <li><b>TZ</b> — мёртвая зона: запрос тока ниже TZ считается нулём.</li>
+        <li><b>TR</b> — шаг изменения тока за такт, то есть скорость нарастания.</li>
+        <li><b>TM</b> — предел тока в тяге; 0 — брать общий предел CL.</li>
+        <li><b>TF</b> — минимальный ток трогания, ниже него тяга не опускается.</li>
+        <li><b>TS</b> — сколько держать ток на стоянке, если вал не вращается.</li>
+      </ul>
     </div>
 
     <div class="card">
