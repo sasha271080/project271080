@@ -292,12 +292,20 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <button data-mode="3" title="тяговый, min-селектор">3</button>
       </div>
       <div style="margin-top:8px">
-        <div class="tgl">Торк-лимит PA3<label class="sw"><input type="checkbox" id="tl" data-on="tl"><span></span></label></div>
-        <div class="tgl">Тепловая I&sup2;t<label class="sw"><input type="checkbox" id="te" data-on="te"><span></span></label></div>
-        <div class="tgl">Максимальная &times;2<label class="sw"><input type="checkbox" id="me" data-on="me"><span></span></label></div>
-        <div class="tgl">Авто-ПИД<label class="sw"><input type="checkbox" id="auto" data-on="auto"><span></span></label></div>
-        <div class="tgl">Контроль пульсаций<label class="sw"><input type="checkbox" id="rip" data-on="rip"><span></span></label></div>
+        <div class="tgl">Торк-лимит PA3 <span class="cmd">TL</span><label class="sw"><input type="checkbox" id="tl" data-on="tl"><span></span></label></div>
+        <div class="tgl">Тепловая I&sup2;t <span class="cmd">TE</span><label class="sw"><input type="checkbox" id="te" data-on="te"><span></span></label></div>
+        <div class="tgl">Максимальная &times;2 <span class="cmd">ME</span><label class="sw"><input type="checkbox" id="me" data-on="me"><span></span></label></div>
+        <div class="tgl">Авто-ПИД <span class="cmd">a / m</span><label class="sw"><input type="checkbox" id="auto" data-on="auto"><span></span></label></div>
+        <div class="tgl">Контроль пульсаций <span class="cmd">r / s</span><label class="sw"><input type="checkbox" id="rip" data-on="rip"><span></span></label></div>
       </div>
+      <ul class="legend">
+        <li><b>TL</b> — ограничение момента: ширина ШИМ режется по аналоговому входу PA3.</li>
+        <li><b>TE</b> — тепловая защита I&sup2;t: копит перегрев и отключает мотор.</li>
+        <li><b>ME</b> — разрешает кратковременный двойной предел тока.</li>
+        <li><b>a / m</b> — авто-ПИД из таблицы зон или ручные коэффициенты.</li>
+        <li><b>r / s</b> — контроль пульсаций тока.</li>
+        <li><b>0..3</b> — режим защиты: 0 мягкий, 1 отладка, 2 тест без защиты, 3 тяговый.</li>
+      </ul>
     </div>
 
     <div class="card">
@@ -309,7 +317,12 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <button data-cmd="RP">На потенциометр</button>
       </div>
       <div class="row"><span>рабочий диапазон RL..RH</span><b id="rvRange">—</b></div>
-      <p class="hint">При задатчике прошивка ждёт команды: панель шлёт PG раз в секунду. Закрыли браузер — через 5 с сработает TRIP_COMM.</p>
+      <ul class="legend">
+        <li><b>RV</b> — задание оборотов с панели, действует вместо потенциометра.</li>
+        <li><b>RP</b> — вернуть задание на потенциометр.</li>
+        <li><b>RL..RH</b> — рабочий диапазон; задание вне него прошивка отвергнет.</li>
+        <li><b>PG</b> — панель шлёт раз в секунду; если закрыть браузер, через 5 с сработает TRIP_COMM.</li>
+      </ul>
     </div>
 
     <div class="card">
@@ -325,6 +338,12 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
         <button data-cmd="m">Ручной</button>
       </div>
       <div class="row"><span>действующие</span><b id="pidEff">—</b></div>
+      <ul class="legend">
+        <li><b>Kp</b> — пропорциональная: жёстче держит обороты, но даёт раскачку.</li>
+        <li><b>Ki</b> — интегральная: убирает остаточную ошибку, но медлит.</li>
+        <li><b>Kd</b> — дифференциальная: гасит выбросы, усиливает шум энкодера.</li>
+        <li><b>Авто</b> — коэффициенты берутся из таблицы зон, ручные не действуют.</li>
+      </ul>
     </div>
 
     <div class="card">
@@ -335,13 +354,17 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
       </div>
       <div class="row"><span>состояние</span><b id="olState">—</b></div>
       <div class="tgl">ШИМ с потенциометра (OT)<label class="sw"><input type="checkbox" id="ot"><span></span></label></div>
-      <label class="f" style="margin-top:8px">ШИМ напрямую, ‰ (OP)
+      <label class="f" style="margin-top:8px">OP, ‰
         <input type="number" id="op" min="0" max="900" step="5" placeholder="0">
       </label>
       <div class="btns" style="margin-top:8px">
         <button class="pri" id="opGo">Задать ШИМ</button>
       </div>
-      <p class="hint">Регуляторы здесь не работают: ШИМ идёт напрямую, выход из режима обнуляет задание. С тяговым режимом несовместим.</p>
+      <ul class="legend">
+        <li><b>OL</b> — включить или выключить разомкнутый контур; при выходе ШИМ обнуляется.</li>
+        <li><b>OP</b> — задание ШИМ напрямую, в промилле: 900 = 90 %.</li>
+        <li><b>OT</b> — брать задание ШИМ с потенциометра вместо OP.</li>
+      </ul>
     </div>
 
     <div class="card">
@@ -378,15 +401,21 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
     <div class="card">
       <h2>Плавность и сеть</h2>
       <div class="form">
-        <label class="f">Плавность ШИМ<span class="cmd">SS</span><input type="number" id="ss" min="1" max="100" step="1"></label>
-        <label class="f">Разгон уставки<span class="cmd">RU</span><input type="number" id="ru" min="1" max="100" step="1"></label>
-        <label class="f">Торможение уставки<span class="cmd">RD</span><input type="number" id="rd" min="1" max="100" step="1"></label>
+        <label class="f">SS<input type="number" id="ss" min="1" max="100" step="1"></label>
+        <label class="f">RU<input type="number" id="ru" min="1" max="100" step="1"></label>
+        <label class="f">RD<input type="number" id="rd" min="1" max="100" step="1"></label>
       </div>
       <div class="form" style="grid-template-columns:1fr 1fr">
-        <label class="f">Сеть, В<span class="cmd">UV</span><input type="number" id="uv" min="100" max="300" step="1"></label>
-        <label class="f">Пауза защиты, мс<span class="cmd">P</span><input type="number" id="pz" min="100" max="30000" step="100" placeholder="3000"></label>
+        <label class="f">UV, В<input type="number" id="uv" min="100" max="300" step="1"></label>
+        <label class="f">P, мс<input type="number" id="pz" min="100" max="30000" step="100" placeholder="3000"></label>
       </div>
-      <p class="hint">SS — насколько резко ШИМ выходит на задание при пуске; меньше значение — плавнее. RU и RD — сколько оборотов уставка добавляет и сбрасывает за такт, чтобы задание не прыгало. UV нужен для расчёта напряжения на двигателе, P — выдержка после срабатывания токовой защиты.</p>
+      <ul class="legend">
+        <li><b>SS</b> — насколько резко ШИМ выходит на задание при пуске; меньше — плавнее.</li>
+        <li><b>RU</b> — сколько оборотов уставка добавляет за такт.</li>
+        <li><b>RD</b> — сколько сбрасывает за такт, чтобы задание не прыгало.</li>
+        <li><b>UV</b> — напряжение сети для расчёта напряжения на двигателе.</li>
+        <li><b>P</b> — выдержка после срабатывания токовой защиты.</li>
+      </ul>
       <div class="btns" style="margin-top:8px">
         <button class="pri" id="smoothGo">Применить</button>
         <button data-cmd="w">Сохранить в Flash</button>
@@ -442,18 +471,28 @@ ul.legend b{color:#c9d4e2;min-width:24px;font-weight:600;flex:0 0 auto}
     <details class="card wide">
       <summary>Тонкая настройка</summary>
       <div class="form form4">
-        <label class="f">Фильтр оборотов<span class="cmd">FR</span><input type="number" id="fr" min="1" max="4" step="1"></label>
-        <label class="f">Фильтр скорости D<span class="cmd">FD</span><input type="number" id="fd" min="1" max="4" step="1"></label>
-        <label class="f">Делитель контура<span class="cmd">SL</span><input type="number" id="sl" min="1" max="8" step="1"></label>
-        <label class="f">Форсаж, мс<span class="cmd">BT</span><input type="number" id="bt" min="0" max="5000" step="50"></label>
-        <label class="f">Пропорц. тока<span class="cmd">CP</span><input type="number" id="cp" min="1" max="5000" step="1"></label>
-        <label class="f">Интегр. тока<span class="cmd">CI</span><input type="number" id="ci" min="0" max="5000" step="1"></label>
-        <label class="f">Предел тока, отсч.<span class="cmd">CL</span><input type="number" id="clv" min="50" max="3000" step="1"></label>
-        <label class="f">Нижний порог, отсч.<span class="cmd">CN</span><input type="number" id="cnv" min="5" max="3000" step="1"></label>
-        <label class="f">Шунт, Ом<span class="cmd">R</span><input type="number" id="shunt" min="0.001" max="1" step="0.001"></label>
-        <label class="f">Усиление<span class="cmd">G</span><input type="number" id="gain" min="1" max="100" step="0.1"></label>
+        <label class="f">FR<input type="number" id="fr" min="1" max="4" step="1"></label>
+        <label class="f">FD<input type="number" id="fd" min="1" max="4" step="1"></label>
+        <label class="f">SL<input type="number" id="sl" min="1" max="8" step="1"></label>
+        <label class="f">BT, мс<input type="number" id="bt" min="0" max="5000" step="50"></label>
+        <label class="f">CP<input type="number" id="cp" min="1" max="5000" step="1"></label>
+        <label class="f">CI<input type="number" id="ci" min="0" max="5000" step="1"></label>
+        <label class="f">CL, отсч.<input type="number" id="clv" min="50" max="3000" step="1"></label>
+        <label class="f">CN, отсч.<input type="number" id="cnv" min="5" max="3000" step="1"></label>
+        <label class="f">R, Ом<input type="number" id="shunt" min="0.001" max="1" step="0.001"></label>
+        <label class="f">G<input type="number" id="gain" min="1" max="100" step="0.1"></label>
       </div>
-      <p class="hint">CL — предел тока, CN — нижняя граница порога PA3. 834 отсчёта АЦП = 1 А при шунте 0,082 Ом и усилении 8,2.</p>
+      <ul class="legend">
+        <li><b>FR</b> — фильтр оборотов, 1..4: сильнее сглаживает, но добавляет запаздывание.</li>
+        <li><b>FD</b> — фильтр дифференциальной части контура скорости, 1..4.</li>
+        <li><b>SL</b> — делитель контура: во сколько раз реже пересчитывается скорость, 1..8.</li>
+        <li><b>BT</b> — форсаж: надбавка при набросе нагрузки, 0 — выключен.</li>
+        <li><b>CP</b> — пропорциональный коэффициент контура тока.</li>
+        <li><b>CI</b> — интегральный коэффициент контура тока.</li>
+        <li><b>CL</b> — предел тока в отсчётах АЦП: 834 отсчёта = 1 А.</li>
+        <li><b>CN</b> — нижняя граница порога PA3, отсчёты.</li>
+        <li><b>R, G</b> — шунт и усиление только для пересчёта в амперы в браузере, в STM32 не уходят.</li>
+      </ul>
       <div class="btns" style="margin-top:8px">
         <button class="pri" id="advGo">Применить</button>
         <button data-cmd="ZD">Выгрузить зоны</button>
